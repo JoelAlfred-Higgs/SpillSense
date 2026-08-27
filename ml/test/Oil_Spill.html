@@ -1,0 +1,1953 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+    <title>Oil Spill Detection & Vessel Analysis</title>
+
+    <!-- =========================
+         LEAFLET CSS
+    ========================== -->
+
+    <link rel="stylesheet"
+          href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+
+    <!-- =========================
+         LEAFLET JS
+    ========================== -->
+
+    <script
+        src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
+    </script>
+
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+
+        body {
+
+            margin: 0;
+
+            font-family: Arial, sans-serif;
+
+            background: #eef2f5;
+
+        }
+
+
+        /* =====================================================
+           HEADER
+        ===================================================== */
+
+        .header {
+
+            background: #172b4d;
+
+            color: white;
+
+            padding: 15px 25px;
+
+        }
+
+
+        .header h1 {
+
+            margin: 0;
+
+            font-size: 24px;
+
+        }
+
+
+        .header p {
+
+            margin: 5px 0 0;
+
+            color: #cbd5e1;
+
+        }
+
+
+        /* =====================================================
+           DASHBOARD
+        ===================================================== */
+
+        .dashboard {
+
+            display: grid;
+
+            grid-template-columns:
+                repeat(5, 1fr);
+
+            gap: 12px;
+
+            padding: 15px;
+
+        }
+
+
+        .card {
+
+            background: white;
+
+            padding: 15px;
+
+            border-radius: 8px;
+
+            box-shadow:
+                0 2px 6px
+                rgba(0,0,0,0.15);
+
+        }
+
+
+        .card-title {
+
+            font-size: 13px;
+
+            color: #64748b;
+
+            margin-bottom: 8px;
+
+        }
+
+
+        .card-value {
+
+            font-size: 21px;
+
+            font-weight: bold;
+
+        }
+
+
+        .danger {
+
+            color: red;
+
+        }
+
+
+        .warning {
+
+            color: orange;
+
+        }
+
+
+        .safe {
+
+            color: green;
+
+        }
+
+
+        /* =====================================================
+           MAIN AREA
+        ===================================================== */
+
+        .main {
+
+            display: grid;
+
+            grid-template-columns:
+                3fr 1fr;
+
+            gap: 15px;
+
+            padding:
+                0 15px 15px;
+
+        }
+
+
+        /* =====================================================
+           MAP
+        ===================================================== */
+
+        #map {
+
+            height: 650px;
+
+            border-radius: 8px;
+
+            box-shadow:
+                0 2px 6px
+                rgba(0,0,0,0.2);
+
+            z-index: 1;
+
+        }
+
+
+        /* =====================================================
+           SIDE PANEL
+        ===================================================== */
+
+        .side-panel {
+
+            background: white;
+
+            border-radius: 8px;
+
+            padding: 15px;
+
+            overflow-y: auto;
+
+            max-height: 650px;
+
+        }
+
+
+        .side-panel h2 {
+
+            margin-top: 0;
+
+            font-size: 18px;
+
+        }
+
+
+        /* =====================================================
+           SHIP CARDS
+        ===================================================== */
+
+        .ship-card {
+
+            border-left: 5px solid;
+
+            padding: 10px;
+
+            margin-bottom: 10px;
+
+            background: #f8fafc;
+
+            border-radius: 5px;
+
+        }
+
+
+        .ship-name {
+
+            font-weight: bold;
+
+            font-size: 15px;
+
+        }
+
+
+        .ship-details {
+
+            font-size: 13px;
+
+            line-height: 1.6;
+
+            margin-top: 5px;
+
+        }
+
+
+        /* =====================================================
+           MAP LEGEND
+        ===================================================== */
+
+        .map-legend {
+
+            background: white;
+
+            padding: 10px 12px;
+
+            line-height: 1.7;
+
+            border-radius: 6px;
+
+            box-shadow:
+                0 1px 5px
+                rgba(0,0,0,0.3);
+
+        }
+
+
+        .legend-title {
+
+            font-weight: bold;
+
+            margin-bottom: 5px;
+
+        }
+
+
+        .legend-line {
+
+            display: flex;
+
+            align-items: center;
+
+        }
+
+
+        .legend-color {
+
+            width: 20px;
+
+            height: 10px;
+
+            margin-right: 8px;
+
+            display: inline-block;
+
+        }
+
+
+        .legend-dot {
+
+            width: 12px;
+
+            height: 12px;
+
+            border-radius: 50%;
+
+            margin-right: 8px;
+
+            display: inline-block;
+
+        }
+
+
+        /* =====================================================
+           SPILL PULSE
+        ===================================================== */
+
+        .spill-pulse {
+
+            width: 18px;
+
+            height: 18px;
+
+            background: red;
+
+            border-radius: 50%;
+
+            border: 3px solid white;
+
+            box-shadow:
+                0 0 0 0
+                rgba(255,0,0,0.7);
+
+            animation:
+                pulse 1.8s infinite;
+
+        }
+
+
+        @keyframes pulse {
+
+            0% {
+
+                box-shadow:
+                    0 0 0 0
+                    rgba(255,0,0,0.7);
+
+            }
+
+            70% {
+
+                box-shadow:
+                    0 0 0 15px
+                    rgba(255,0,0,0);
+
+            }
+
+            100% {
+
+                box-shadow:
+                    0 0 0 0
+                    rgba(255,0,0,0);
+
+            }
+
+        }
+
+
+        /* =====================================================
+           MOBILE
+        ===================================================== */
+
+        @media(max-width:900px) {
+
+            .dashboard {
+
+                grid-template-columns:
+                    repeat(2, 1fr);
+
+            }
+
+
+            .main {
+
+                grid-template-columns:
+                    1fr;
+
+            }
+
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+
+<!-- =====================================================
+     HEADER
+===================================================== -->
+
+<div class="header">
+
+    <h1>
+
+        🌍 Oil Spill Detection & Vessel Analysis
+
+    </h1>
+
+
+    <p>
+
+        Marine Monitoring • Satellite-Based Oil Spill Detection
+
+    </p>
+
+</div>
+
+
+
+<!-- =====================================================
+     DASHBOARD
+===================================================== -->
+
+<div class="dashboard">
+
+
+    <div class="card">
+
+        <div class="card-title">
+
+            SPILL STATUS
+
+        </div>
+
+
+        <div
+            class="card-value danger"
+            id="spillStatus">
+
+            ⚠ DETECTED
+
+        </div>
+
+    </div>
+
+
+
+    <div class="card">
+
+        <div class="card-title">
+
+            SPILL SEVERITY
+
+        </div>
+
+
+        <div
+            class="card-value danger"
+            id="spillSeverity">
+
+            HIGH
+
+        </div>
+
+    </div>
+
+
+
+    <div class="card">
+
+        <div class="card-title">
+
+            AFFECTED AREA
+
+        </div>
+
+
+        <div
+            class="card-value"
+            id="affectedAreaText">
+
+            2.4 km²
+
+        </div>
+
+    </div>
+
+
+
+    <div class="card">
+
+        <div class="card-title">
+
+            NEARBY VESSELS
+
+        </div>
+
+
+        <div
+            class="card-value"
+            id="vesselCount">
+
+            4
+
+        </div>
+
+    </div>
+
+
+
+    <div class="card">
+
+        <div class="card-title">
+
+            TOP SUSPECT
+
+        </div>
+
+
+        <div
+            class="card-value danger"
+            id="topShip">
+
+            Calculating...
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<!-- =====================================================
+     MAIN
+===================================================== -->
+
+<div class="main">
+
+
+    <!-- =================================================
+         MAP
+    ================================================== -->
+
+    <div id="map"></div>
+
+
+
+    <!-- =================================================
+         SIDE PANEL
+    ================================================== -->
+
+    <div class="side-panel">
+
+
+        <h2>
+
+            🚢 Suspected Vessels
+
+        </h2>
+
+
+        <div id="shipList">
+
+            Calculating vessel probabilities...
+
+        </div>
+
+
+        <hr>
+
+
+        <h2>
+
+            🌊 Environmental Data
+
+        </h2>
+
+
+        <div class="ship-details">
+
+
+            <b>Wind Speed:</b>
+
+            18 km/h
+
+
+            <br>
+
+
+            <b>Wind Direction:</b>
+
+            South-West
+
+
+            <br>
+
+
+            <b>Ocean Current:</b>
+
+            1.4 knots
+
+
+            <br>
+
+
+            <b>Current Direction:</b>
+
+            North-East
+
+
+            <br>
+
+
+            <b>Water Temperature:</b>
+
+            27.3°C
+
+        </div>
+
+
+        <hr>
+
+
+        <h2>
+
+            🛰️ Satellite Information
+
+        </h2>
+
+
+        <div class="ship-details">
+
+
+            <b>Satellite:</b>
+
+            Sentinel-1
+
+
+            <br>
+
+
+            <b>Data:</b>
+
+            GRD SAR
+
+
+            <br>
+
+
+            <b>Polarization:</b>
+
+            VV / VH
+
+
+            <br>
+
+
+            <b>Status:</b>
+
+            <span class="safe">
+
+                CONNECTED
+
+            </span>
+
+        </div>
+
+
+        <hr>
+
+
+        <h2>
+
+            📡 Sensor Information
+
+        </h2>
+
+
+        <div class="ship-details">
+
+
+            <b>Sensor:</b>
+
+            Ocean Sensor #01
+
+
+            <br>
+
+
+            <b>Status:</b>
+
+            <span class="safe">
+
+                ONLINE
+
+            </span>
+
+
+            <br>
+
+
+            <b>Oil Concentration:</b>
+
+            87%
+
+
+            <br>
+
+
+            <b>Battery:</b>
+
+            92%
+
+
+            <br>
+
+
+            <b>Last Update:</b>
+
+            Just now
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<script>
+
+
+// =====================================================
+// 1. CREATE MAP
+// =====================================================
+
+var map = L.map('map', {
+
+    worldCopyJump: true,
+
+    minZoom: 2,
+
+    maxZoom: 18
+
+});
+
+
+// =====================================================
+// 2. OPEN STREET MAP
+// =====================================================
+
+var streetLayer = L.tileLayer(
+
+    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+
+    {
+
+        maxZoom: 19,
+
+        attribution:
+            '&copy; OpenStreetMap contributors'
+
+    }
+
+);
+
+
+// Add default layer
+
+streetLayer.addTo(map);
+
+
+// =====================================================
+// 3. SATELLITE MAP
+// =====================================================
+
+var satelliteLayer = L.tileLayer(
+
+    'https://server.arcgisonline.com/ArcGIS/rest/services/' +
+    'World_Imagery/MapServer/tile/{z}/{y}/{x}',
+
+    {
+
+        maxZoom: 19,
+
+        attribution:
+            'Tiles &copy; Esri'
+
+    }
+
+);
+
+
+// =====================================================
+// 4. COUNTRY / STATE / CITY LABELS
+// =====================================================
+
+// Esri reference layer containing geographic labels.
+// This is placed ABOVE the map imagery.
+
+var labelsLayer = L.tileLayer(
+
+    'https://server.arcgisonline.com/ArcGIS/rest/services/' +
+    'Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+
+    {
+
+        maxZoom: 19,
+
+        opacity: 1,
+
+        attribution:
+            'Labels &copy; Esri'
+
+    }
+
+);
+
+
+// Add labels by default
+
+labelsLayer.addTo(map);
+
+
+// =====================================================
+// 5. MAP LAYER CONTROL
+// =====================================================
+
+var baseMaps = {
+
+    "Street Map":
+        streetLayer,
+
+    "Satellite":
+        satelliteLayer
+
+};
+
+
+var overlays = {
+
+    "Country / State / City Names":
+        labelsLayer
+
+};
+
+
+L.control.layers(
+
+    baseMaps,
+
+    overlays
+
+).addTo(map);
+
+
+// =====================================================
+// 6. TEMPORARY SPILL COORDINATES
+// =====================================================
+
+// Offshore Mumbai
+// Arabian Sea
+//
+// These are temporary coordinates.
+//
+// Later:
+// Python + Sentinel-1 will provide these.
+
+var spillLat =
+    18.9500;
+
+var spillLon =
+    72.7500;
+
+
+// =====================================================
+// 7. CENTER MAP
+// =====================================================
+
+map.setView(
+
+    [
+        spillLat,
+        spillLon
+    ],
+
+    11
+
+);
+
+
+// =====================================================
+// 8. SPILL ICON
+// =====================================================
+
+var spillIcon = L.divIcon({
+
+    className:
+        "",
+
+    html:
+        '<div class="spill-pulse"></div>',
+
+    iconSize:
+        [24,24],
+
+    iconAnchor:
+        [12,12]
+
+});
+
+
+// =====================================================
+// 9. OIL SPILL MARKER
+// =====================================================
+
+var spillMarker = L.marker(
+
+    [
+        spillLat,
+        spillLon
+    ],
+
+    {
+
+        icon:
+            spillIcon
+
+    }
+
+).addTo(map);
+
+
+// =====================================================
+// 10. SPILL POPUP
+// =====================================================
+
+spillMarker.bindPopup(
+
+    "<b>⚠ OIL SPILL DETECTED</b>" +
+
+    "<br><br>" +
+
+    "<b>Latitude:</b> " +
+
+    spillLat +
+
+    "<br>" +
+
+    "<b>Longitude:</b> " +
+
+    spillLon +
+
+    "<br>" +
+
+    "<b>Severity:</b> HIGH" +
+
+    "<br>" +
+
+    "<b>Oil Concentration:</b> 87%" +
+
+    "<br>" +
+
+    "<b>Satellite:</b> Sentinel-1"
+
+);
+
+
+// =====================================================
+// 11. IRREGULAR OIL SPILL BOUNDARY
+// =====================================================
+
+// Temporary irregular boundary.
+//
+// IMPORTANT:
+// These coordinates are currently manually created
+// for the prototype.
+//
+// Later these coordinates should come directly from
+// the Sentinel-1 image detection algorithm.
+
+var spillBoundary = [
+
+    [18.9640, 72.7300],
+
+    [18.9720, 72.7360],
+
+    [18.9790, 72.7480],
+
+    [18.9760, 72.7610],
+
+    [18.9680, 72.7690],
+
+    [18.9570, 72.7650],
+
+    [18.9490, 72.7560],
+
+    [18.9460, 72.7440],
+
+    [18.9510, 72.7340]
+
+];
+
+
+// =====================================================
+// 12. CREATE OIL SPILL POLYGON
+// =====================================================
+
+var affectedArea = L.polygon(
+
+    spillBoundary,
+
+    {
+
+        color:
+            "red",
+
+        weight:
+            3,
+
+        opacity:
+            1,
+
+        fillColor:
+            "red",
+
+        fillOpacity:
+            0.25
+
+    }
+
+).addTo(map);
+
+
+// =====================================================
+// 13. OIL SPILL AREA POPUP
+// =====================================================
+
+affectedArea.bindPopup(
+
+    "<b>🌊 Estimated Oil Spill Area</b>" +
+
+    "<br><br>" +
+
+    "<b>Boundary:</b> Detected Spill Region" +
+
+    "<br>" +
+
+    "<b>Estimated Area:</b> 2.4 km²" +
+
+    "<br>" +
+
+    "<b>Satellite:</b> Sentinel-1" +
+
+    "<br>" +
+
+    "<b>Data:</b> GRD SAR"
+
+);
+
+
+// =====================================================
+// 14. SENSOR
+// =====================================================
+
+var sensorLat =
+    18.9700;
+
+var sensorLon =
+    72.7800;
+
+
+var sensorMarker = L.circleMarker(
+
+    [
+        sensorLat,
+        sensorLon
+    ],
+
+    {
+
+        radius:
+            9,
+
+        color:
+            "white",
+
+        weight:
+            2,
+
+        fillColor:
+            "blue",
+
+        fillOpacity:
+            1
+
+    }
+
+).addTo(map);
+
+
+// =====================================================
+// 15. SENSOR POPUP
+// =====================================================
+
+sensorMarker.bindPopup(
+
+    "<b>📡 Ocean Sensor #01</b>" +
+
+    "<br><br>" +
+
+    "<b>Status:</b> ONLINE" +
+
+    "<br>" +
+
+    "<b>Oil Concentration:</b> 87%" +
+
+    "<br>" +
+
+    "<b>Battery:</b> 92%"
+
+);
+
+
+// =====================================================
+// 16. SHIP DATA
+// =====================================================
+
+var ships = [
+
+
+    {
+
+        name:
+            "MV Ocean Star",
+
+        speed:
+            12,
+
+        direction:
+            135,
+
+        timeSincePass:
+            4,
+
+        directionMatch:
+            true,
+
+        path: [
+
+            [18.9200,72.6800],
+
+            [18.9300,72.7000],
+
+            [18.9400,72.7150],
+
+            [18.9480,72.7300],
+
+            [18.9550,72.7450]
+
+        ]
+
+    },
+
+
+    {
+
+        name:
+            "MV Blue Horizon",
+
+        speed:
+            15,
+
+        direction:
+            250,
+
+        timeSincePass:
+            15,
+
+        directionMatch:
+            true,
+
+        path: [
+
+            [19.0200,72.8500],
+
+            [19.0050,72.8300],
+
+            [18.9900,72.8100],
+
+            [18.9800,72.7950],
+
+            [18.9700,72.7800]
+
+        ]
+
+    },
+
+
+    {
+
+        name:
+            "MV Sea Pearl",
+
+        speed:
+            10,
+
+        direction:
+            80,
+
+        timeSincePass:
+            30,
+
+        directionMatch:
+            false,
+
+        path: [
+
+            [19.0800,72.6200],
+
+            [19.0650,72.6400],
+
+            [19.0500,72.6600],
+
+            [19.0350,72.6800],
+
+            [19.0200,72.7000]
+
+        ]
+
+    },
+
+
+    {
+
+        name:
+            "MV Coastal Express",
+
+        speed:
+            18,
+
+        direction:
+            320,
+
+        timeSincePass:
+            8,
+
+        directionMatch:
+            false,
+
+        path: [
+
+            [18.8500,72.8500],
+
+            [18.8700,72.8300],
+
+            [18.8900,72.8100],
+
+            [18.9100,72.7900],
+
+            [18.9300,72.7700]
+
+        ]
+
+    }
+
+];
+
+
+// =====================================================
+// 17. DISTANCE CALCULATION
+// =====================================================
+
+function calculateDistance(
+
+    lat1,
+    lon1,
+    lat2,
+    lon2
+
+) {
+
+    var R =
+        6371;
+
+
+    var dLat =
+
+        (lat2 - lat1) *
+        Math.PI / 180;
+
+
+    var dLon =
+
+        (lon2 - lon1) *
+        Math.PI / 180;
+
+
+    var a =
+
+        Math.sin(dLat / 2) *
+        Math.sin(dLat / 2)
+
+        +
+
+        Math.cos(
+
+            lat1 *
+            Math.PI / 180
+
+        )
+
+        *
+
+        Math.cos(
+
+            lat2 *
+            Math.PI / 180
+
+        )
+
+        *
+
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+
+
+    var c =
+
+        2 *
+
+        Math.atan2(
+
+            Math.sqrt(a),
+
+            Math.sqrt(1 - a)
+
+        );
+
+
+    return R * c;
+
+}
+
+
+// =====================================================
+// 18. PROBABILITY
+// =====================================================
+
+function calculateProbability(ship) {
+
+    var score =
+        0;
+
+
+    var currentPosition =
+
+        ship.path[
+
+            ship.path.length - 1
+
+        ];
+
+
+    ship.lat =
+        currentPosition[0];
+
+
+    ship.lon =
+        currentPosition[1];
+
+
+    var distance =
+
+        calculateDistance(
+
+            ship.lat,
+
+            ship.lon,
+
+            spillLat,
+
+            spillLon
+
+        );
+
+
+    ship.distance =
+        distance;
+
+
+    // Distance
+
+    if (distance < 1)
+
+        score += 40;
+
+    else if (distance < 3)
+
+        score += 30;
+
+    else if (distance < 5)
+
+        score += 20;
+
+    else
+
+        score += 5;
+
+
+    // Time
+
+    if (ship.timeSincePass < 5)
+
+        score += 30;
+
+    else if (ship.timeSincePass < 15)
+
+        score += 20;
+
+    else if (ship.timeSincePass < 30)
+
+        score += 10;
+
+    else
+
+        score += 5;
+
+
+    // Direction
+
+    if (ship.directionMatch)
+
+        score += 30;
+
+    else
+
+        score += 5;
+
+
+    ship.score =
+        score;
+
+}
+
+
+// =====================================================
+// 19. CALCULATE ALL SHIPS
+// =====================================================
+
+ships.forEach(
+
+    function(ship) {
+
+        calculateProbability(ship);
+
+    }
+
+);
+
+
+// =====================================================
+// 20. SORT SHIPS
+// =====================================================
+
+ships.sort(
+
+    function(a,b) {
+
+        return b.score -
+               a.score;
+
+    }
+
+);
+
+
+// =====================================================
+// 21. PATH COLORS
+// =====================================================
+
+var pathColors = [
+
+    "red",
+
+    "yellow",
+
+    "orange",
+
+    "green"
+
+];
+
+
+// =====================================================
+// 22. DISPLAY SHIPS
+// =====================================================
+
+ships.forEach(
+
+    function(ship,index) {
+
+
+        // -----------------------------------------
+        // PATH
+        // -----------------------------------------
+
+        var shipPath = L.polyline(
+
+            ship.path,
+
+            {
+
+                color:
+                    pathColors[index],
+
+                weight:
+                    5,
+
+                opacity:
+                    0.85
+
+            }
+
+        ).addTo(map);
+
+
+        // -----------------------------------------
+        // PATH POPUP
+        // -----------------------------------------
+
+        shipPath.bindPopup(
+
+            "<b>🚢 " +
+            ship.name +
+            "</b>" +
+
+            "<br><br>" +
+
+            "<b>Rank:</b> #" +
+            (index + 1) +
+
+            "<br>" +
+
+            "<b>Likelihood:</b> " +
+            ship.score +
+            "%" +
+
+            "<br>" +
+
+            "<b>Distance:</b> " +
+            ship.distance.toFixed(2) +
+            " km"
+
+        );
+
+
+        // -----------------------------------------
+        // CURRENT POSITION
+        // -----------------------------------------
+
+        var currentPosition =
+
+            ship.path[
+
+                ship.path.length - 1
+
+            ];
+
+
+        var marker = L.circleMarker(
+
+            currentPosition,
+
+            {
+
+                radius:
+                    9,
+
+                color:
+                    "white",
+
+                weight:
+                    2,
+
+                fillColor:
+                    pathColors[index],
+
+                fillOpacity:
+                    1
+
+            }
+
+        ).addTo(map);
+
+
+        // -----------------------------------------
+        // CURRENT POSITION POPUP
+        // -----------------------------------------
+
+        marker.bindPopup(
+
+            "<b>🚢 " +
+            ship.name +
+            "</b>" +
+
+            "<br><br>" +
+
+            "<b>Likelihood:</b> " +
+            ship.score +
+            "%" +
+
+            "<br>" +
+
+            "<b>Distance:</b> " +
+            ship.distance.toFixed(2) +
+            " km" +
+
+            "<br>" +
+
+            "<b>Speed:</b> " +
+            ship.speed +
+            " knots" +
+
+            "<br>" +
+
+            "<b>Course:</b> " +
+            ship.direction +
+            "°" +
+
+            "<br>" +
+
+            "<b>Time Since Passing:</b> " +
+            ship.timeSincePass +
+            " min" +
+
+            "<br>" +
+
+            "<b>Direction Match:</b> " +
+
+            (
+
+                ship.directionMatch
+                    ? "YES"
+                    : "NO"
+
+            )
+
+        );
+
+
+        // =================================================
+        // SIDE PANEL
+        // =================================================
+
+        var risk;
+
+
+        if (ship.score >= 70)
+
+            risk =
+                "HIGH";
+
+        else if (ship.score >= 40)
+
+            risk =
+                "MEDIUM";
+
+        else
+
+            risk =
+                "LOW";
+
+
+        var riskClass =
+
+            risk === "HIGH"
+
+                ? "danger"
+
+                : risk === "MEDIUM"
+
+                    ? "warning"
+
+                    : "safe";
+
+
+        var card =
+
+            document.createElement(
+                "div"
+            );
+
+
+        card.className =
+            "ship-card";
+
+
+        card.style.borderLeftColor =
+            pathColors[index];
+
+
+        card.innerHTML =
+
+            "<div class='ship-name'>" +
+
+            "#" +
+            (index + 1) +
+
+            " 🚢 " +
+            ship.name +
+
+            "</div>" +
+
+
+            "<div class='ship-details'>" +
+
+            "<b>Likelihood:</b> " +
+
+            ship.score +
+
+            "%<br>" +
+
+
+            "<b>Risk:</b> " +
+
+            "<span class='" +
+
+            riskClass +
+
+            "'>" +
+
+            risk +
+
+            "</span>" +
+
+            "<br>" +
+
+
+            "<b>Distance:</b> " +
+
+            ship.distance.toFixed(2) +
+
+            " km<br>" +
+
+
+            "<b>Speed:</b> " +
+
+            ship.speed +
+
+            " knots<br>" +
+
+
+            "<b>Course:</b> " +
+
+            ship.direction +
+
+            "°<br>" +
+
+
+            "<b>Time:</b> " +
+
+            ship.timeSincePass +
+
+            " min ago<br>" +
+
+
+            "<b>Direction Match:</b> " +
+
+            (
+
+                ship.directionMatch
+                    ? "YES"
+                    : "NO"
+
+            ) +
+
+            "</div>";
+
+
+        document
+
+            .getElementById(
+                "shipList"
+            )
+
+            .appendChild(card);
+
+    }
+
+);
+
+
+// =====================================================
+// 23. TOP SUSPECT
+// =====================================================
+
+var topShip =
+    ships[0];
+
+
+document
+
+    .getElementById(
+        "topShip"
+    )
+
+    .innerHTML =
+        topShip.name;
+
+
+// =====================================================
+// 24. VESSEL COUNT
+// =====================================================
+
+document
+
+    .getElementById(
+        "vesselCount"
+    )
+
+    .innerHTML =
+        ships.length;
+
+
+// =====================================================
+// 25. LEGEND
+// =====================================================
+
+var legend =
+    L.control({
+
+        position:
+            "bottomright"
+
+    });
+
+
+legend.onAdd =
+    function(map) {
+
+
+        var div =
+            L.DomUtil.create(
+
+                "div",
+
+                "map-legend"
+
+            );
+
+
+        div.innerHTML =
+
+            "<div class='legend-title'>" +
+
+            "🌍 Map Legend" +
+
+            "</div>" +
+
+
+            "<div class='legend-line'>" +
+
+            "<span class='legend-dot' " +
+
+            "style='background:red'></span>" +
+
+            "Oil Spill" +
+
+            "</div>" +
+
+
+            "<div class='legend-line'>" +
+
+            "<span class='legend-color' " +
+
+            "style='background:red'></span>" +
+
+            "Highest Risk Vessel" +
+
+            "</div>" +
+
+
+            "<div class='legend-line'>" +
+
+            "<span class='legend-color' " +
+
+            "style='background:yellow'></span>" +
+
+            "Second Highest" +
+
+            "</div>" +
+
+
+            "<div class='legend-line'>" +
+
+            "<span class='legend-color' " +
+
+            "style='background:orange'></span>" +
+
+            "Third Highest" +
+
+            "</div>" +
+
+
+            "<div class='legend-line'>" +
+
+            "<span class='legend-color' " +
+
+            "style='background:green'></span>" +
+
+            "Lowest Risk" +
+
+            "</div>" +
+
+
+            "<div class='legend-line'>" +
+
+            "<span class='legend-dot' " +
+
+            "style='background:blue'></span>" +
+
+            "Ocean Sensor" +
+
+            "</div>";
+
+
+        return div;
+
+    };
+
+
+legend.addTo(map);
+
+
+</script>
+
+
+</body>
+
+</html>
