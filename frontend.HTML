@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SpillSense Global — SAR + AIS Oil Spill Attribution</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+*{box-sizing:border-box}html,body{height:100%;margin:0}body{font-family:Inter,system-ui,Segoe UI,sans-serif;background:#03111b;color:#eaf3f8;overflow:hidden}
+:root{--panel:rgba(3,17,27,.96);--line:rgba(130,180,220,.2);--blue:#1595ff;--green:#42df6d;--yellow:#ffd400;--red:#ff3030}
+.app{display:grid;grid-template-columns:218px 1fr;height:100vh}.sidebar{background:linear-gradient(180deg,#041522,#020c14);border-right:1px solid var(--line);padding:20px 12px;z-index:3000;display:flex;flex-direction:column}
+.brand{display:flex;gap:10px;padding:0 8px 18px}.logo{font-size:34px}.brand h1{margin:0;font-size:25px;letter-spacing:1px}.brand p{margin:5px 0;color:#9aafbd;font-size:13px;line-height:1.35}
+.nav{display:grid;gap:6px}.nav button{border:0;background:transparent;color:#c7d3dc;padding:12px 10px;border-radius:8px;text-align:left;cursor:pointer;display:flex;gap:12px}.nav button.active,.nav button:hover{background:rgba(25,126,212,.25);color:white}.ico{width:22px;text-align:center}
+.legend,.backscatter{margin:12px 3px 0;border:1px solid var(--line);border-radius:9px;padding:12px;background:rgba(4,21,33,.72)}.legend{margin-top:auto}.legend-title{font-size:12px;color:#09a8ff;font-weight:800;margin-bottom:10px}.legend-row{display:flex;align-items:center;gap:8px;font-size:11px;margin:8px 0}.sw{width:19px;height:11px;display:inline-block}.oil{background:#000;border:2px solid #ff2222}.ais{border-top:2px dashed #ffd400;height:0}.rupture{width:12px;height:12px;border-radius:50%;background:#ff3030;box-shadow:0 0 10px #ff3030}.ship{font-size:15px}
+.grad{height:27px;border-radius:4px;background:linear-gradient(90deg,#1717b5,#0058ff,#00b9ef,#28d86b,#e4e500,#ff8900,#d91e18)}.scale{display:flex;justify-content:space-between;font-size:9px;color:#aebdca;margin-top:4px}.status{margin-top:12px;font-size:12px;display:flex;gap:8px;align-items:center}.dot{width:11px;height:11px;border-radius:50%;background:#3edb6b;box-shadow:0 0 10px #3edb6b}.status strong{margin-left:auto;color:#3edb6b}
+.main{position:relative;min-width:0}.map{height:100%;width:100%;background:#06203a}.sar{position:absolute;inset:0;z-index:400;pointer-events:none;opacity:.42;mix-blend-mode:screen;background:radial-gradient(ellipse at 24% 25%,rgba(245,190,0,.7),transparent 16%),radial-gradient(ellipse at 74% 62%,rgba(0,90,255,.8),transparent 34%),radial-gradient(ellipse at 46% 78%,rgba(0,220,190,.4),transparent 23%),linear-gradient(125deg,rgba(0,100,255,.35),rgba(0,50,160,.25),rgba(0,160,220,.3));filter:saturate(1.2)}
+.badge{position:absolute;left:16px;top:0;z-index:1500;background:rgba(0,8,15,.9);padding:12px 16px;border-radius:0 0 9px 9px}.badge b{display:block;font-size:14px}.badge span{font-size:12px}
+.controls{position:absolute;right:17px;top:16px;z-index:1600;display:flex;gap:8px}.control,.search{height:40px;background:rgba(2,13,23,.88);border:1px solid var(--line);border-radius:8px;color:white;padding:0 12px}.search{width:245px}.control{cursor:pointer}
+.panel{position:absolute;right:14px;top:78px;bottom:66px;width:395px;z-index:1400;background:var(--panel);border:1px solid rgba(90,148,195,.25);border-radius:15px;box-shadow:0 20px 60px #0008;overflow:hidden}.head{padding:15px 16px;display:flex;justify-content:space-between;align-items:center}.badgegreen{color:#3de66c;background:#12371f;padding:6px 8px;border-radius:5px;font-size:10px}
+.tabs{display:grid;grid-template-columns:repeat(5,1fr);border-block:1px solid var(--line)}.tabs button{background:transparent;border:0;color:#aebdc8;padding:11px 3px;font-size:10px;cursor:pointer}.tabs button.active{color:#0aaaff;border-bottom:2px solid #0aaaff}
+.content{padding:15px;overflow:auto;height:calc(100% - 90px)}.title{font-size:13px;font-weight:800;margin:0 0 10px}.muted{font-size:11px;color:#b7c5ce;line-height:1.55}.divider{height:1px;background:var(--line);margin:14px 0}.metric{display:grid;grid-template-columns:1fr auto;gap:8px;font-size:11px;padding:5px 0}.metric span{color:#b9c7d0}.green{color:#43e56c}.yellow{color:#ffd400}.red{color:#ff4b4b}
+.candidate{border:1px solid var(--line);border-radius:8px;padding:10px;margin:8px 0;cursor:pointer}.candidate:hover{border-color:#1595ff}.candidate.top{border-color:#ff3030}.ctop{display:grid;grid-template-columns:25px 1fr auto;gap:7px}.score{font-weight:800;font-size:15px}.small{font-size:10px;color:#94a9b8;margin-top:3px}.bar{height:4px;background:#152b3a;border-radius:4px;margin-top:7px}.bar span{height:100%;display:block;background:#0fa8ff;border-radius:4px}.top .bar span{background:#ff3b30}
+.action{width:100%;border:1px solid #087fc7;background:#073d62;color:white;padding:9px;border-radius:7px;cursor:pointer;margin-top:8px}.action:hover{background:#07537e}
+.timeline{position:absolute;z-index:1500;left:50%;transform:translateX(-50%);bottom:11px;width:560px;max-width:calc(100vw - 300px);background:rgba(3,18,29,.95);border:1px solid var(--line);border-radius:11px;padding:10px 16px}.topt{display:flex;align-items:center;gap:12px;justify-content:center;font-size:12px}.play{border:1px solid #245c7e;background:#09283d;color:white;border-radius:50%;width:32px;height:32px;cursor:pointer}.range{width:100%;accent-color:#148cff}.ticks{display:flex;justify-content:space-between;padding-left:45px;font-size:9px;color:#718a9b}.coords{position:absolute;right:16px;bottom:8px;z-index:1500;font-size:10px;text-shadow:0 2px 4px #000}
+.event{padding:10px 0;border-bottom:1px solid var(--line);display:grid;grid-template-columns:60px 1fr auto;gap:8px;font-size:10px}.event span{color:#b6c5cf;line-height:1.45}.vessel-popup{min-width:220px}.vessel-popup b{font-size:14px}.vessel-popup div{font-size:11px;margin-top:5px}
+.rupture-icon{width:22px;height:22px;border-radius:50%;background:#ff2222;border:3px solid white;box-shadow:0 0 0 5px #ff222244,0 0 18px #ff2222}.ship-icon{font-size:22px;text-shadow:0 0 5px #000}.route-dot{width:8px;height:8px;border-radius:50%;background:#ffd400;border:1px solid #111}
+.vessel-high{filter:drop-shadow(0 0 8px #ff3030)}.vessel-low{opacity:.75}
+@media(max-width:1050px){.app{grid-template-columns:75px 1fr}.brand p,.brand h1,.legend,.backscatter,.nav button span:last-child{display:none}.brand{justify-content:center}.panel{width:350px}.timeline{max-width:calc(100vw - 260px)}}
+@media(max-width:760px){.panel{left:82px;right:10px;width:auto;bottom:55px;height:43vh;top:auto}.controls{display:none}.timeline{left:55%;width:400px}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="sidebar">
+<div class="brand"><div class="logo">♧</div><div><h1>SPILLSENSE</h1><p>Global SAR + AIS<br>Oil Spill Attribution</p></div></div>
+<nav class="nav">
+<button class="active" data-view="map"><span class="ico">◉</span><span>Global Map</span></button>
+<button data-view="sar"><span class="ico">▧</span><span>SAR Imagery</span></button>
+<button data-view="ais"><span class="ico">≋</span><span>AIS Vessels</span></button>
+<button data-view="analysis"><span class="ico">⌁</span><span>Attribution</span></button>
+<button data-view="incidents"><span class="ico">△</span><span>Incidents</span></button>
+<button data-view="reports"><span class="ico">▤</span><span>Reports</span></button>
+</nav>
+<div class="legend"><div class="legend-title">LEGEND</div>
+<div class="legend-row"><i class="sw oil"></i>Detected oil spill</div>
+<div class="legend-row"><i class="sw ais"></i>AIS vessel track</div>
+<div class="legend-row"><i class="rupture"></i>Rupture / source event</div>
+<div class="legend-row"><span class="ship">🚢</span>Vessel</div>
+<div class="legend-row">⚓ Port / coastline</div>
+</div>
+<div class="backscatter"><b style="font-size:11px">SAR Backscatter (dB)</b><div class="grad" style="margin-top:7px"></div><div class="scale"><span>-30</span><span>-20</span><span>-10</span><span>0</span></div></div>
+<div class="status"><i class="dot"></i>System Status<strong>ONLINE</strong></div>
+</aside>
+<main class="main">
+<div id="map" class="map"></div>
+<div id="sar" class="sar"></div>
+<div class="badge"><b>Sentinel-1 SAR + AIS</b><span id="acq">Global Maritime Monitoring</span></div>
+<div class="controls">
+<input id="search" class="search" placeholder="Search vessel / incident / coordinates">
+<button class="control" id="globalBtn">🌐 World</button>
+<button class="control" id="sarBtn">SAR</button>
+</div>
+<section class="panel">
+<div class="head"><b id="incidentTitle">GLOBAL INCIDENT VIEW</b><span class="badgegreen" id="status">LIVE DATA</span></div>
+<div class="tabs">
+<button class="active" data-tab="summary">SUMMARY</button>
+<button data-tab="vessel">VESSEL</button>
+<button data-tab="movement">MOVEMENT</button>
+<button data-tab="timeline">TIMELINE</button>
+<button data-tab="analysis">ANALYSIS</button>
+</div>
+<div class="content" id="content"></div>
+</section>
+<div class="timeline">
+<div class="topt"><button class="play" id="play">▶</button><b id="timeLabel">Before spill</b></div>
+<input id="time" class="range" type="range" min="0" max="100" value="35">
+<div class="ticks"><span>-6h</span><span>-3h</span><span>SPILL</span><span>+3h</span><span>+6h</span><span>+12h</span></div>
+</div>
+<div class="coords" id="coords">Move over the map</div>
+</main>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+let incidents=[],vessels=[],selected=null,map,oilLayer,tracksLayer,vesselLayer,sourceMarker,vesselMarker,routeLine,playing=false,timer=null,selectedVessel=null;
+
+async function loadData(){
+try{
+const[spillRes,vesselRes]=await Promise.all([
+fetch("http://127.0.0.1:8000/api/spill/"),
+fetch("http://127.0.0.1:8000/api/vessels/")
+]);
+if(!spillRes.ok)throw new Error("Spill API failed");
+if(!vesselRes.ok)throw new Error("Vessel API failed");
+const spillData=await spillRes.json();
+const vesselData=await vesselRes.json();
+vessels=vesselData.vessels||[];
+incidents=(spillData.scenes||[]).map(s=>({
+id:s.scene,
+name:s.scene,
+lat:s.center?.latitude??0,
+lon:s.center?.longitude??0,
+date:s.date,
+area:s.spill_area_km2??0,
+conf:Math.round((s.max_oil_probability??0)*100),
+source:"Sentinel-1",
+ship:"Unknown",
+type:"Unknown",
+rupture:"Requires AIS and casualty evidence",
+score:Math.round((s.max_oil_probability??0)*100)
+}));
+if(!incidents.length)throw new Error("No spill scenes found");
+selected=incidents[0];
+init();
+}catch(e){
+console.error(e);
+alert("Unable to load SpillSense API data. Check that FastAPI is running.");
+}
+}
+
+function init(){
+map=L.map("map",{worldCopyJump:true,zoomControl:true}).setView([selected.lat,selected.lon],5);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap contributors"}).addTo(map);
+oilLayer=L.featureGroup().addTo(map);
+tracksLayer=L.featureGroup().addTo(map);
+vesselLayer=L.featureGroup().addTo(map);
+map.on("mousemove",e=>document.getElementById("coords").textContent=`Lat ${e.latlng.lat.toFixed(4)}° ${e.latlng.lat>=0?"N":"S"}  Lon ${Math.abs(e.latlng.lng).toFixed(4)}° ${e.latlng.lng>=0?"E":"W"}`);
+loadIncident(selected);
+render("summary");
+}
+
+function clearLayers(){
+oilLayer.clearLayers();
+tracksLayer.clearLayers();
+vesselLayer.clearLayers();
+if(sourceMarker){map.removeLayer(sourceMarker);sourceMarker=null}
+}
+
+function oilShape(lat,lon){
+return[
+[lat+.16,lon-.26],
+[lat+.25,lon-.08],
+[lat+.17,lon+.12],
+[lat+.05,lon+.24],
+[lat-.10,lon+.19],
+[lat-.19,lon+.03],
+[lat-.13,lon-.17],
+[lat-.02,lon-.28]
+];
+}
+
+function loadIncident(i){
+selected=i;
+clearLayers();
+document.getElementById("incidentTitle").textContent=i.id+" • "+i.name;
+document.getElementById("acq").textContent=`SAR detection • ${i.date} • AIS connected`;
+
+const poly=L.polygon(oilShape(i.lat,i.lon),{
+color:"#ff2020",
+weight:2,
+fillColor:"#000",
+fillOpacity:.82
+}).addTo(oilLayer);
+
+poly.bindTooltip("Oil spill detected — click for incident details");
+poly.on("click",()=>render("summary"));
+
+L.circle([i.lat,i.lon],{
+radius:25000,
+color:"#ffd400",
+weight:2,
+fillOpacity:0
+}).addTo(oilLayer);
+
+sourceMarker=L.marker([i.lat,i.lon],{
+icon:L.divIcon({
+className:"",
+html:'<div class="rupture-icon"></div>',
+iconSize:[22,22],
+iconAnchor:[11,11]
+})
+}).addTo(map);
+
+sourceMarker.bindPopup(`
+<div class="vessel-popup">
+<b>⚠ Inferred source event</b>
+<div>Sentinel-1 SAR</div>
+<div>Location: ${i.lat.toFixed(4)}, ${i.lon.toFixed(4)}</div>
+<div style="color:#ffd400;margin-top:8px">Independent casualty evidence required for tank confirmation.</div>
+</div>
+`);
+
+drawVessels();
+map.flyTo([i.lat,i.lon],5,{duration:.7});
+updateMovement(35);
+}
+
+function drawVessels(){
+let ranked=[...vessels].sort((a,b)=>(b.likelihood||0)-(a.likelihood||0));
+
+ranked.forEach((v,index)=>{
+const isTop=index===0;
+
+const icon=L.divIcon({
+className:isTop?"vessel-high":"vessel-low",
+html:`<div class="ship-icon">🚢</div>`,
+iconSize:[28,28],
+iconAnchor:[14,14]
+});
+
+const marker=L.marker([v.latitude,v.longitude],{icon}).addTo(vesselLayer);
+
+marker.bindPopup(`
+<div class="vessel-popup">
+<b>${v.name}</b>
+<div>MMSI: ${v.mmsi||"N/A"}</div>
+<div>Speed: ${v.speed} kn</div>
+<div>Course: ${v.course}°</div>
+<div>Distance from spill: ${v.distance_from_spill_km} km</div>
+<div>Time since passing: ${v.time_since_passing_min} min</div>
+<div>Direction match: ${v.direction_match?"YES":"NO"}</div>
+<div>Likelihood: <b style="color:${isTop?"#ff3030":"#ffd400"}">${v.likelihood}%</b></div>
+<div>Risk: <b>${v.risk}</b></div>
+</div>
+`);
+
+marker.on("click",()=>showVessel(v,index+1));
+
+const line=[
+[v.latitude-.35,v.longitude-.55],
+[v.latitude,v.longitude],
+[v.latitude+.35,v.longitude+.55]
+];
+
+L.polyline(line,{
+color:isTop?"#ff3030":"#66a9d9",
+weight:isTop?4:2,
+dashArray:isTop?null:"5 7",
+opacity:.8
+}).addTo(tracksLayer);
+});
+}
+
+function showVessel(v,rank){
+selectedVessel=v;
+render("vessel");
+}
+
+function updateMovement(v){
+if(!selected)return;
+
+const route=buildRoute(selected);
+const idx=Math.round((v/100)*(route.length-1));
+const p=route[idx];
+
+if(vesselMarker)vesselMarker.setLatLng(p);
+
+let phase=v<35?"BEFORE SPILL — APPROACH":v<42?"T0 — SOURCE WINDOW":"AFTER SPILL — DEPARTURE";
+
+document.getElementById("timeLabel").textContent=phase+` • T+${((v-35)/100*18).toFixed(1)} h`;
+
+if(routeLine)routeLine.setStyle({opacity:v<35?.55:1});
+}
+
+function buildRoute(i){
+const pts=[];
+
+for(let n=0;n<=100;n++){
+const t=n/100;
+pts.push([
+i.lat+(t-.5)*1.35,
+i.lon+(t-.5)*2.55+Math.sin(t*Math.PI*2)*.16
+]);
+}
+
+return pts;
+}
+
+function render(tab){
+document.querySelectorAll(".tabs button").forEach(b=>b.classList.toggle("active",b.dataset.tab===tab));
+
+const c=document.getElementById("content"),i=selected;
+
+if(tab==="summary"){
+const ranked=[...vessels].sort((a,b)=>(b.likelihood||0)-(a.likelihood||0));
+const top=ranked[0];
+
+c.innerHTML=`
+<h3 class="title">SPILL SUMMARY</h3>
+<p class="muted">Sentinel-1 SAR identifies the spill candidate. AIS data is used to identify vessels associated with the source location and time window.</p>
+${metric("Detected",i.date+" • SAR")}
+${metric("Location",i.lat.toFixed(4)+"° "+(i.lat>=0?"N":"S")+", "+Math.abs(i.lon).toFixed(4)+"° "+(i.lon>=0?"E":"W"))}
+${metric("Estimated area",i.area+" km²")}
+${metric("SAR confidence",i.conf+"%")}
+${metric("AIS vessels",vessels.length)}
+<div class="divider"></div>
+<h3 class="title">TOP SOURCE CANDIDATE</h3>
+${top?`
+<div class="candidate top" onclick="showVessel(vessels.find(x=>x.name==='${top.name}'),1)">
+<div class="ctop">
+<b>1</b>
+<div>
+<b>${top.name}</b>
+<div class="small">${top.speed} kn • ${top.course}° • ${top.risk} RISK</div>
+</div>
+<div class="score">${top.likelihood}%</div>
+</div>
+<div class="bar"><span style="width:${top.likelihood}%"></span></div>
+</div>
+`:"<p class='muted'>No AIS vessels available.</p>"}
+<div class="divider"></div>
+<h3 class="title">AIS ATTRIBUTION</h3>
+${metric("Direction compatible",top?.direction_match?"YES":"NO")}
+${metric("Closest distance",top?top.distance_from_spill_km+" km":"N/A")}
+${metric("Time since passing",top?top.time_since_passing_min+" min":"N/A")}
+${metric("Risk level",top?.risk||"N/A")}
+<div class="divider"></div>
+<p class="muted">AIS ranking prioritizes vessels for investigation. It does not by itself establish legal responsibility or identify a specific ruptured tank.</p>
+<button class="action" onclick="render('analysis')">View evidence chain →</button>
+`;
+}
+
+if(tab==="vessel"){
+const v=selectedVessel||[...vessels].sort((a,b)=>(b.likelihood||0)-(a.likelihood||0))[0];
+
+if(!v){
+c.innerHTML="<p class='muted'>No vessel data available.</p>";
+return;
+}
+
+c.innerHTML=`
+<h3 class="title">VESSEL INVESTIGATION</h3>
+${metric("Vessel",v.name)}
+${metric("MMSI",v.mmsi||"N/A")}
+${metric("Speed",v.speed+" kn")}
+${metric("Course",v.course+"°")}
+${metric("Distance",v.distance_from_spill_km+" km")}
+${metric("Time since passing",v.time_since_passing_min+" min")}
+${metric("Direction match",v.direction_match?"YES":"NO")}
+${metric("Likelihood",v.likelihood+"%")}
+${metric("Risk",v.risk)}
+<div class="divider"></div>
+<h3 class="title">TANK / CASUALTY STATUS</h3>
+<p class="muted">AIS and SAR can identify a strong source candidate, but a specific tank rupture requires vessel inspection, casualty reports, cargo records, or engineering evidence.</p>
+${metric("SAR alone identifies tank?","NO")}
+${metric("Further evidence","Required")}
+<button class="action" onclick="focusSource()">Show inferred source point</button>
+`;
+}
+
+if(tab==="movement"){
+c.innerHTML=`
+<h3 class="title">AIS VESSEL MOVEMENT</h3>
+<p class="muted">Live vessel positions from the FastAPI AIS endpoint are displayed on the map. The vessel with the highest likelihood is highlighted as the current investigation priority.</p>
+${vessels.map((v,n)=>event("#"+(n+1),`${v.name} • ${v.speed} kn • ${v.distance_from_spill_km} km from spill`,v.risk)).join("")}
+<button class="action" onclick="playTimeline()">▶ Play investigation timeline</button>
+`;
+}
+
+if(tab==="timeline"){
+c.innerHTML=`
+<h3 class="title">EVENT TIMELINE</h3>
+${event("-6h","AIS history enters investigation window.","AIS")}
+${event("-1h","Candidate vessel approaches spill corridor.","AIS")}
+${event("T0","SAR identifies oil-spill candidate.","SAR")}
+${event("+1h","Vessel movement is compared against source location.","AIS")}
+${event("+6h","Environmental drift compatibility can be evaluated.","MODEL")}
+${event("+12h","Attribution priority is updated.","AI")}
+`;
+}
+
+if(tab==="analysis"){
+const top=[...vessels].sort((a,b)=>(b.likelihood||0)-(a.likelihood||0))[0];
+const score=top?.likelihood||0;
+
+c.innerHTML=`
+<h3 class="title">ATTRIBUTION EVIDENCE CHAIN</h3>
+${scoreRow("AIS vessel proximity",top?Math.min(100,Math.round(100-(top.distance_from_spill_km*5))):0)}
+${scoreRow("Time compatibility",top?Math.max(0,100-top.time_since_passing_min):0)}
+${scoreRow("Direction compatibility",top?.direction_match?95:35)}
+${scoreRow("Vessel likelihood",score)}
+<div class="divider"></div>
+${metric("Investigation priority",score+"%")}
+<p class="muted">The attribution score is an investigative ranking, not proof of legal responsibility. Confirmation requires independent evidence.</p>
+<button class="action" onclick="downloadReport()">Generate JSON investigation report</button>
+`;
+}
+}
+
+function metric(a,b){
+return`<div class="metric"><span>${a}</span><strong>${b}</strong></div>`;
+}
+
+function event(t,txt,type){
+return`<div class="event"><b>${t}</b><span>${txt}</span><em style="color:#09a8ff;font-style:normal">${type}</em></div>`;
+}
+
+function scoreRow(a,b){
+return`<div style="margin:12px 0"><div style="display:flex;justify-content:space-between;font-size:10px"><span>${a}</span><b>${b}%</b></div><div class="bar"><span style="width:${b}%"></span></div></div>`;
+}
+
+function focusSource(){
+map.flyTo([selected.lat,selected.lon],7,{duration:.7});
+if(sourceMarker)sourceMarker.openPopup();
+}
+
+function playTimeline(){
+playing=true;
+document.getElementById("play").textContent="❚❚";
+clearInterval(timer);
+
+timer=setInterval(()=>{
+let v=+document.getElementById("time").value+1;
+if(v>100)v=0;
+document.getElementById("time").value=v;
+updateMovement(v);
+},80);
+}
+
+function downloadReport(){
+const top=[...vessels].sort((a,b)=>(b.likelihood||0)-(a.likelihood||0))[0];
+
+const report={
+project:"SpillSense",
+incident_id:selected.id,
+date:selected.date,
+sar_detection:{
+latitude:selected.lat,
+longitude:selected.lon,
+area_km2:selected.area,
+confidence:selected.conf
+},
+candidate_vessel:top||null,
+warning:"SAR + AIS attribution is an investigation priority and not proof of legal responsibility or a specific tank rupture."
+};
+
+const a=document.createElement("a");
+const u=URL.createObjectURL(new Blob([JSON.stringify(report,null,2)],{type:"application/json"}));
+a.href=u;
+a.download=selected.id+"_report.json";
+a.click();
+URL.revokeObjectURL(u);
+}
+
+document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>render(b.dataset.tab));
+
+document.querySelectorAll(".nav button").forEach(b=>b.onclick=()=>{
+document.querySelectorAll(".nav button").forEach(x=>x.classList.remove("active"));
+b.classList.add("active");
+
+if(b.dataset.view==="map"){
+map.setView([20,0],2);
+render("summary");
+}
+
+if(b.dataset.view==="sar"){
+document.getElementById("sar").style.display="block";
+render("summary");
+}
+
+if(b.dataset.view==="ais")render("movement");
+
+if(b.dataset.view==="analysis")render("analysis");
+
+if(b.dataset.view==="incidents"){
+map.setView([20,0],2);
+render("summary");
+}
+
+if(b.dataset.view==="reports")downloadReport();
+});
+
+document.getElementById("sarBtn").onclick=()=>{
+const s=document.getElementById("sar");
+s.style.display=s.style.display==="none"?"block":"none";
+};
+
+document.getElementById("globalBtn").onclick=()=>map.setView([20,0],2);
+
+document.getElementById("time").oninput=e=>updateMovement(+e.target.value);
+
+document.getElementById("play").onclick=()=>{
+if(playing){
+playing=false;
+clearInterval(timer);
+document.getElementById("play").textContent="▶";
+}else{
+playTimeline();
+}
+};
+
+document.getElementById("search").onkeydown=e=>{
+if(e.key!=="Enter")return;
+
+const q=e.target.value.toLowerCase().trim();
+
+const vessel=vessels.find(v=>
+(v.name||"").toLowerCase().includes(q)||
+(v.mmsi||"").toLowerCase().includes(q)
+);
+
+const incident=incidents.find(i=>
+i.id.toLowerCase().includes(q)||
+i.name.toLowerCase().includes(q)
+);
+
+if(vessel){
+selectedVessel=vessel;
+map.flyTo([vessel.latitude,vessel.longitude],8,{duration:.7});
+render("vessel");
+e.target.value="";
+return;
+}
+
+if(incident){
+loadIncident(incident);
+render("summary");
+e.target.value="";
+return;
+}
+
+alert("No vessel or incident found.");
+};
+
+loadData();
+</script>
+</body>
+</html>
